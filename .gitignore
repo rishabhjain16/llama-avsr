@@ -32,3 +32,5 @@ outputs/
 # Experiment directories
 exp/
 wandb/
+
+./auto-avsr

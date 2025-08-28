@@ -39,7 +39,7 @@ Install necessary dependencies:
    pip install --editable ./
 ```
 
-Additional Installation for Av0hubert libraries:
+Additional Installation for Av-hubert libraries:
 
 ```bash
 pip install pip==24.0 
@@ -47,6 +47,11 @@ pip install hydra-core==1.0.7
 pip install omegaconf==2.0.4 
 pip install numpy==1.23.0
 pip install -U bitsandbytes
+```
+
+Additionally for using Auto-AVSR:
+```bash
+git clone https://github.com/mpc001/auto_avsr.git
 ```
 
 <details>
