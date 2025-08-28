@@ -1,0 +1,34 @@
+.DS_Store
+./ckps
+# Python cache directories (anywhere in the project)
+*/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+
+# Model checkpoints and outputs
+*.ckpt
+*.pth
+*.pt
+model_*.pth
+
+# Logs
+*.log
+logs/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+lightning_logs/
+outputs/
+*.py[cod]
+*$py.class
+.idea/
+*.pyc
+*.tar
+.DS_Store
+
+# Experiment directories
+exp/
+wandb/
