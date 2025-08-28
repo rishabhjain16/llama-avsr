@@ -39,6 +39,16 @@ Install necessary dependencies:
    pip install --editable ./
 ```
 
+Additional Installation for Av0hubert libraries:
+
+```bash
+pip install pip==24.0 
+pip install hydra-core==1.0.7 
+pip install omegaconf==2.0.4 
+pip install numpy==1.23.0
+pip install -U bitsandbytes
+```
+
 <details>
   <summary><strong>Issues with opencv-python package?</strong></summary>
 If you encounter issues with opencv-python (e.g., ImportError: libGL.so.1: cannot open shared object file: No such file or directory), pip uninstall opencv-python and pip install opencv-python-headless. This trick solves the issue.
