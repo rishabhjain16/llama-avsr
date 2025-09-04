@@ -362,7 +362,7 @@ def parse_args():
     )
     parser.add_argument(
         "--auto-test",
-        default= True,
+        default= False,
         help="Flag to use debug level for logging",
     )
     
@@ -396,7 +396,20 @@ def cli_main():
         if trainer.is_global_zero:
             trainer = get_test_trainer(args)
             ckpt = torch.load(args.pretrained_model_path, map_location=lambda storage, loc: storage)
-            modelmodule.model.load_state_dict(ckpt)
+            # Extract the actual model state dict from Lightning checkpoint
+            if 'state_dict' in ckpt:
+                state_dict = ckpt['state_dict']
+                # Remove 'model.' prefix from keys if present
+                model_state_dict = {}
+                for key, value in state_dict.items():
+                    if key.startswith('model.'):
+                        model_state_dict[key[6:]] = value  # Remove 'model.' prefix
+                    else:
+                        model_state_dict[key] = value
+                modelmodule.model.load_state_dict(model_state_dict)
+            else:
+                # If it's already a clean state dict
+                modelmodule.model.load_state_dict(ckpt)
             
             trainer.test(model=modelmodule, datamodule=datamodule)
 if __name__ == "__main__":

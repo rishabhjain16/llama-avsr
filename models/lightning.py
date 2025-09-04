@@ -139,8 +139,21 @@ class ModelModule_LLM(LightningModule):
         
         # initialize the full model from the checkpoint for inference.
         if args.pretrained_model_path:
-            ckpt = torch.load(args.pretrained_model_path)
-            self.model.load_state_dict(ckpt)
+            ckpt = torch.load(args.pretrained_model_path, map_location='cpu')
+            # Extract the actual model state dict from Lightning checkpoint
+            if 'state_dict' in ckpt:
+                state_dict = ckpt['state_dict']
+                # Remove 'model.' prefix from keys if present
+                model_state_dict = {}
+                for key, value in state_dict.items():
+                    if key.startswith('model.'):
+                        model_state_dict[key[6:]] = value  # Remove 'model.' prefix
+                    else:
+                        model_state_dict[key] = value
+                self.model.load_state_dict(model_state_dict)
+            else:
+                # If it's already a clean state dict (not a Lightning checkpoint)
+                self.model.load_state_dict(ckpt)
             
         
     def configure_optimizers(self):

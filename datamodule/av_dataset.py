@@ -111,11 +111,20 @@ class AVDataset_LLM(torch.utils.data.Dataset):
         path = os.path.join(self.root_dir, dataset_name, rel_path)
         
         # Load raw text from corresponding .txt file
-        text_path = path.replace("lrs2_video_seg16s", "lrs2_text_seg16s").replace(".mp4", ".txt")
-        if os.path.exists(text_path):
+        # Handle both LRS2 and LRS3 path formats
+        text_path = None
+        if "lrs2_video_seg16s" in path:
+            text_path = path.replace("lrs2_video_seg16s", "lrs2_text_seg16s").replace(".mp4", ".txt")
+        elif "lrs3_video_seg16s" in path:
+            text_path = path.replace("lrs3_video_seg16s", "lrs3_text_seg16s").replace(".mp4", ".txt")
+        elif "video_seg16s" in path:
+            # Generic fallback for other formats
+            text_path = path.replace("video_seg16s", "text_seg16s").replace(".mp4", ".txt")
+        
+        if text_path and os.path.exists(text_path):
             with open(text_path, 'r') as f:
                 text = f.read().strip().lower()  # Convert to lowercase for better LLM performance
-        # If text file doesn't exist, fall back to tokenized text (though this won't work well with LLM)
+        # If text file doesn't exist, fall back to text from CSV (which might be tokenized)
         
         if self.modality == "video":
             video = load_video(path)
