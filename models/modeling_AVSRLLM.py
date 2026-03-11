@@ -13,10 +13,11 @@ from torch import nn
 from .Llama_LoRA import LlamaForCausalLM_lora
 from transformers import WhisperModel, LlamaForCausalLM, AutoFeatureExtractor, WavLMModel
 
-import fairseq
-from av_hubert.avhubert.hubert_asr import AVHubertSeq2Seq, AVHubertSeq2SeqConfig
-from av_hubert.avhubert.hubert_lora import AVHubertModel_lora
+# import fairseq
+# from av_hubert.avhubert.hubert_asr import AVHubertSeq2Seq, AVHubertSeq2SeqConfig
+# from av_hubert.avhubert.hubert_lora import AVHubertModel_lora
 from .auto_avsr_encoder import load_auto_avsr_video_encoder
+from .vjepa2_encoder import load_vjepa2_video_encoder
 import math
 
 IGNORE_INDEX = -100
@@ -26,7 +27,7 @@ class AVSR_LLMs(nn.Module):
                  pretrain_avhubert_enc_audiovisual, use_lora_avhubert, llm_model, hidden_size, intermediate_size, tokenizer, prompt, pad_id, 
                  downsample_ratio_audio, downsample_ratio_video, downsample_ratio_audiovisual, single_projector_avhubert, audio_encoder_name, 
                  unfrozen_modules, max_dec_tokens, num_beams, PETF_LLM_name = None, peft_config_llm = None,
-                 video_encoder_name = "av-hubert", pretrain_auto_avsr_path = None,
+                 video_encoder_name = "av-hubert", pretrain_auto_avsr_path = None, vjepa2_model_name = None,
                  ):
         
         super().__init__()
@@ -43,6 +44,7 @@ class AVSR_LLMs(nn.Module):
         self.audio_encoder_name = audio_encoder_name
         self.video_encoder_name = video_encoder_name
         self.pretrain_auto_avsr_path = pretrain_auto_avsr_path
+        self.vjepa2_model_name = vjepa2_model_name
         self.llm_model = llm_model
         self.peft_config_llm = peft_config_llm
         self.PETF_LLM_name = PETF_LLM_name
@@ -117,6 +119,13 @@ class AVSR_LLMs(nn.Module):
                 self.video_encoder = load_auto_avsr_video_encoder(self.pretrain_auto_avsr_path)
                 self.video_encoder.requires_grad_(False)
                 video_dim = 768  # Full Auto-AVSR encoder outputs 768-dim features
+                
+            elif self.video_encoder_name == "vjepa2":
+                print("Initializing V-JEPA 2 video encoder!")
+                self.video_encoder = load_vjepa2_video_encoder(self.vjepa2_model_name)
+                self.video_encoder.requires_grad_(False)
+                video_dim = self.video_encoder.embed_dim  # 1024 for ViT-L, 1280 for ViT-H, 1408 for ViT-g
+                print(f"V-JEPA 2 feature dimension: {video_dim}")
                 
             else:
                 raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")
@@ -445,7 +454,10 @@ class AVSR_LLMs(nn.Module):
         if self.video_encoder_name == "av-hubert":
             video_enc = self.video_encoder.extract_finetune(source={'video': torch.reshape(videos,(-1,videos.shape[2],videos.shape[1],videos.shape[3],videos.shape[-1])),'audio': None})[0]
         elif self.video_encoder_name == "auto-avsr":
-            # Auto-AVSR expects input shape (B, T, H, W)
+            # Auto-AVSR expects input shape (B, T, C, H, W)
+            video_enc = self.video_encoder(videos)
+        elif self.video_encoder_name == "vjepa2":
+            # V-JEPA 2 expects input shape (B, T, C, H, W)
             video_enc = self.video_encoder(videos)
         else:
             raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")

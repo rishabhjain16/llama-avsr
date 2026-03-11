@@ -102,6 +102,7 @@ class ModelModule_LLM(LightningModule):
                                    peft_config_llm= lora_config_llm,
                                    video_encoder_name = getattr(args, 'video_encoder_name', 'av-hubert'),
                                    pretrain_auto_avsr_path = getattr(args, 'pretrain_auto_avsr_path', None),
+                                   vjepa2_model_name = getattr(args, 'vjepa2_model_name', None),
                                    )
             
             n_parameters_learn = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -129,6 +130,7 @@ class ModelModule_LLM(LightningModule):
                                    num_beams = args.num_beams,
                                    video_encoder_name = getattr(args, 'video_encoder_name', 'av-hubert'),
                                    pretrain_auto_avsr_path = getattr(args, 'pretrain_auto_avsr_path', None),
+                                   vjepa2_model_name = getattr(args, 'vjepa2_model_name', None),
                                    )
             
             n_parameters_learn = sum(p.numel() for p in self.model.parameters() if p.requires_grad)

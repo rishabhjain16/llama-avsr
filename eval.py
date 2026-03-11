@@ -110,7 +110,7 @@ def parse_args():
         "--video-encoder-name",
         default = "av-hubert",
         type = str,
-        choices= ["av-hubert", "auto-avsr"],
+        choices= ["av-hubert", "auto-avsr", "vjepa2"],
         help="Video encoder to use for feature extraction"
         )
     parser.add_argument(
@@ -119,6 +119,12 @@ def parse_args():
         type = str,
         help="Path to pretrained Auto-AVSR model checkpoint"
         )
+    parser.add_argument(
+        "--vjepa2-model-name",
+        default="facebook/vjepa2-vitl-fpc64-256",
+        type=str,
+        help="HuggingFace model name for V-JEPA 2 (only used if video-encoder-name=vjepa2)"
+    )
     parser.add_argument(
         "--intermediate-size",
         default= 2048,

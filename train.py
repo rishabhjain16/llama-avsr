@@ -160,14 +160,20 @@ def parse_args():
         "--video-encoder-name",
         default="av-hubert",
         type=str,
-        choices=["av-hubert", "auto-avsr"],
-        help="Video encoder to use: av-hubert or auto-avsr"
+        choices=["av-hubert", "auto-avsr", "vjepa2"],
+        help="Video encoder to use: av-hubert, auto-avsr, or vjepa2"
     )
     parser.add_argument(
         "--pretrain-auto-avsr-path",
         default=None,
         type=str,
         help="Path to pretrained auto-AVSR model (required when video-encoder-name=auto-avsr)"
+    )
+    parser.add_argument(
+        "--vjepa2-model-name",
+        default="facebook/vjepa2-vitl-fpc64-256",
+        type=str,
+        help="HuggingFace model name for V-JEPA 2 (only used if video-encoder-name=vjepa2)"
     )
     parser.add_argument(
         "--use-lora-avhubert",
