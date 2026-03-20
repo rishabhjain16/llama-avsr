@@ -1,6 +1,6 @@
 # Llama-AVSR: an MLLM Designed for Audio-Visual Speech Recognition
 
-Modified the codebase to use Encoder froAuto-AVSR as a feature extractor to feed it to Llama Decoder. 
+Modified the codebase to use Encoder from Auto-AVSR self supervised approach as a feature extractor to feed it to Llama Decoder. 
 Currently working to intrgrate and use Vjepa2 as a feature extractor.
 
 This is the official repository for the paper "[**Large Language Models are Strong Audio-Visual Speech
