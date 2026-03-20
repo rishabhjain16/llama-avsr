@@ -3,7 +3,7 @@
 
 python train.py \
     --exp-dir ./experiments \
-    --root-dir /home/rishabhjain/Desktop/Datasets/lrs2_rf/ \
+    --root-dir /data/ssd3/data_rishabh/lrs2_rf \
     --project-wandb llama-avsr \
     --exp-name VSR_vjepa2_vitl \
     --modality video \

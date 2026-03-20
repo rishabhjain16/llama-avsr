@@ -459,10 +459,20 @@ class AVSR_LLMs(nn.Module):
         elif self.video_encoder_name == "vjepa2":
             # V-JEPA 2 expects input shape (B, T, C, H, W)
             video_enc = self.video_encoder(videos)
+            # Convert to bfloat16 to match model dtype
+            video_enc = video_enc.to(torch.bfloat16)
         else:
             raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")
             
         if self.downsample_ratio_video != 1:
+            # Pad the sequence to make it divisible by downsample_ratio_video
+            seq_len = video_enc.shape[1]
+            pad_len = (self.downsample_ratio_video - seq_len % self.downsample_ratio_video) % self.downsample_ratio_video
+            if pad_len > 0:
+                padding = torch.zeros(video_enc.shape[0], pad_len, video_enc.shape[2], 
+                                     device=video_enc.device, dtype=video_enc.dtype)
+                video_enc = torch.cat([video_enc, padding], dim=1)
+            
             video_enc = [video_enc[:, x:x + self.downsample_ratio_video, :].view(video_enc.shape[0], 1, -1) for x in range(0, video_enc.shape[1], self.downsample_ratio_video)]
             video_enc = torch.stack(video_enc, dim=1).squeeze(2)
             
