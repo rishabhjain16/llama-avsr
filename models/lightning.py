@@ -141,9 +141,13 @@ class ModelModule_LLM(LightningModule):
         
         # initialize the full model from the checkpoint for inference.
         if args.pretrained_model_path:
-            ckpt = torch.load(args.pretrained_model_path)
-            self.model.load_state_dict(ckpt)
-            
+            ckpt = torch.load(args.pretrained_model_path, map_location='cpu')
+            state_dict = ckpt['state_dict']
+            # Lightning saves weights under "model.*", strip that prefix
+            state_dict = {k.replace('model.', '', 1): v for k, v in state_dict.items()}
+            missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
+            print(f"Checkpoint loaded. Missing keys: {len(missing)}, Unexpected: {len(unexpected)}")
+                    
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(params= self.model.parameters(), lr= self.args.lr, weight_decay=self.args.weight_decay, betas=(0.9, 0.98))

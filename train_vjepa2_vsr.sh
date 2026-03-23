@@ -2,7 +2,7 @@
 # Training script for VSR (Video-Only) with V-JEPA 2
 
 python train.py \
-    --exp-dir ./experiments \
+    --exp-dir /data/ssd3/data_rishabh/llama_av_skps/VSR_vjepa_v2 \
     --root-dir /data/ssd3/data_rishabh/lrs2_rf \
     --project-wandb llama-avsr \
     --exp-name VSR_vjepa2_vitl \
