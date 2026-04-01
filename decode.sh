@@ -1,12 +1,21 @@
 #!/bin/bash
 
-# 1. Modality Argument
+# 1. Arguments: Modality and GPU ID
 MOD=$1
-if [[ -z "$MOD" ]]; then echo "Usage: bash run_llm_eval.sh [V|A|AV]"; exit 1; fi
+GPU_ID=$2
+
+if [[ -z "$MOD" || -z "$GPU_ID" ]]; then 
+    echo "Usage: bash run_llm_eval.sh [V|A|AV] [GPU_ID]"
+    echo "Example: bash run_llm_eval.sh AV 0"
+    exit 1
+fi
+
+# Set GPU Visibility
+export CUDA_VISIBLE_DEVICES=$GPU_ID
 
 # 2. Paths
 CKP_DIR="/data/ssd3/data_rishabh/llama-avsr-ckps"
-BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_autoavsr_wild_multi_llm"
+BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_llama_avsr_llm"
 SUMMARY_FILE="${BASE_OUT_PATH}/summary_llm_${MOD}.csv"
 
 # 3. Specific Flags for each Modality
@@ -40,7 +49,7 @@ case $MOD in
         ;;
 esac
 
-# 4. Dataset List (Including LRS2 and LRS3)
+# 4. Dataset List
 DATASETS=(
     "LRS2|/data/ssd2/data_rishabh/lrs2_rf/labels/"
     "LRS3|/data/ssd2/data_rishabh/lrs3/metadata/"
@@ -72,13 +81,8 @@ for ENTRY in "${DATASETS[@]}"; do
     NAME="${ENTRY%%|*}"
     META="${ENTRY##*|}"
     
-    # 1. Search for 'test' CSV
     TEST_FILE=$(ls ${META}/*test*transcript_lengths_seg16s*.csv 2>/dev/null | head -n 1)
-    
-    # 2. Clean ROOT_DIR logic (strips /meta, /labels, or /metadata)
-    ROOT_DIR="${META%/meta*}"
-    ROOT_DIR="${ROOT_DIR%/labels*}"
-    ROOT_DIR="${ROOT_DIR%/metadata*}"
+    ROOT_DIR="${META%/meta*}"; ROOT_DIR="${ROOT_DIR%/labels*}"; ROOT_DIR="${ROOT_DIR%/metadata*}"
 
     if [ -z "$TEST_FILE" ]; then continue; fi
 
@@ -86,11 +90,7 @@ for ENTRY in "${DATASETS[@]}"; do
     mkdir -p "$OUT_DIR"
     LOG="${OUT_DIR}/eval.log"
 
-    echo "------------------------------------------------"
-    echo "RUNNING: $NAME ($MOD)"
-    echo "ROOT:    $ROOT_DIR"
-    echo "CSV:     $(basename $TEST_FILE)"
-    echo "------------------------------------------------"
+    echo "Running: $NAME [$MOD] on GPU $GPU_ID"
 
     python eval.py \
         --exp-name "AVSR_inference" \

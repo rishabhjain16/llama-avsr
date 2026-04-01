@@ -206,9 +206,9 @@ class ModelModule_LLM(LightningModule):
         sample_char_len = max(1, len(gold_text))
         sample_cer = sample_char_ed / sample_char_len
         
-        print("Input text: ", gold_text)
-        print("Generated text: ", generated_text)
-        print(f"Sample WER: {sample_wer:.4f} | Sample CER: {sample_cer:.4f}")
+        print(f"\nInput text: {gold_text}", flush=True)
+        print(f"Generated text: {generated_text}", flush=True)
+        print(f"Sample WER: {sample_wer:.4f} | Sample CER: {sample_cer:.4f}", flush=True)
         
         # Running totals for average metrics
         self.total_word_edit_distance += sample_word_ed
@@ -218,7 +218,7 @@ class ModelModule_LLM(LightningModule):
 
         running_wer = self.total_word_edit_distance / max(1, self.total_word_length)
         running_cer = self.total_char_edit_distance / max(1, self.total_char_length)
-        print(f"Running Avg WER: {running_wer:.4f} | Running Avg CER: {running_cer:.4f}")
+        print(f"Running Avg WER: {running_wer:.4f} | Running Avg CER: {running_cer:.4f}", flush=True)
         return
     
     def on_test_epoch_start(self):
