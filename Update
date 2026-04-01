@@ -1,0 +1,7 @@
+Modified the scipt to work with pretrained Vision model 
+from Visual Speech Recognition for multiple languages checkpoint for training.
+
+
+python train.py     --exp-dir ./experiments     --root-dir /data/ssd2/data_rishabh/lrs2_rf/     --project-wandb VSR_AV_Llama     --exp-name VSR_AutoAVSR_Llama31_AV     --modality video     --llm-model meta-llama/Meta-Llama-3.1-8B     --video-encoder-name auto-avsr     --pretrain-auto-avsr-path /data/ssd2/data_rishabh/auto-avsr/authors/LRS3_V_WER19.1/model.pth     --add_PETF_LLM lora     --unfrozen_modules peft_llm     --reduction_lora 64     --alpha 8     --downsample-ratio-video 3     --num-nodes 1     --gpus 1     --max-frames-video 1000     --lr 5e-4     --max-epochs 10  --train-file /data/ssd2/data_rishabh/lrs2_rf/labels/lrs2_train_transcript_lengths_seg16s.csv --test-file /data/ssd2/data_rishabh/lrs2_rf/labels/lrs2_test_transcript_lengths_seg16s.csv --val-file /data/ssd2/data_rishabh/lrs2_rf/labels/lrs2_val_transcript_lengths_seg16s.csv 
+
+python eval.py     --exp-name VSR_AutoAVSR_Llama31_AV     --project-wandb VSR_AV_Llama     --modality video     --llm-model meta-llama/Meta-Llama-3.1-8B     --video-encoder-name auto-avsr     --add_PETF_LLM lora     --unfrozen_modules peft_llm     --reduction_lora 64     --alpha 8     --downsample-ratio-audio 3     --max-dec-tokens 32     --num-beams 15     --root-dir /data/ssd2/data_rishabh/lrs2_rf/     --test-file /data/ssd2/data_rishabh/lrs2_rf/labels/lrs2_test_transcript_lengths_seg16s.csv     --pretrained-model-path experiments/VSR_AutoAVSR_Llama31_AV/epoch=9.ckpt

@@ -12,7 +12,7 @@ from torch import nn
 
 from .Llama_LoRA import LlamaForCausalLM_lora
 from transformers import WhisperModel, LlamaForCausalLM, AutoFeatureExtractor, WavLMModel
-
+import torch.nn.functional as F
 import fairseq
 from av_hubert.avhubert.hubert_asr import AVHubertSeq2Seq, AVHubertSeq2SeqConfig
 from av_hubert.avhubert.hubert_lora import AVHubertModel_lora
@@ -440,22 +440,51 @@ class AVSR_LLMs(nn.Module):
                     audio_enc = torch.stack(audio_enc[:-1], dim=1).squeeze(2)
             
             return audio_enc, video_enc
-    
+# Changed to work with AV Checkpoint
+    # def encode_video(self, videos):
+    #     if self.video_encoder_name == "av-hubert":
+    #         video_enc = self.video_encoder.extract_finetune(source={'video': torch.reshape(videos,(-1,videos.shape[2],videos.shape[1],videos.shape[3],videos.shape[-1])),'audio': None})[0]
+    #     elif self.video_encoder_name == "auto-avsr":
+    #         # Auto-AVSR expects input shape (B, T, H, W)
+    #         video_enc = self.video_encoder(videos)
+    #     else:
+    #         raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")
+            
+    #     if self.downsample_ratio_video != 1:
+    #         video_enc = [video_enc[:, x:x + self.downsample_ratio_video, :].view(video_enc.shape[0], 1, -1) for x in range(0, video_enc.shape[1], self.downsample_ratio_video)]
+    #         video_enc = torch.stack(video_enc, dim=1).squeeze(2)
+            
+    #     return video_enc
+
+
     def encode_video(self, videos):
-        if self.video_encoder_name == "av-hubert":
-            video_enc = self.video_encoder.extract_finetune(source={'video': torch.reshape(videos,(-1,videos.shape[2],videos.shape[1],videos.shape[3],videos.shape[-1])),'audio': None})[0]
-        elif self.video_encoder_name == "auto-avsr":
-            # Auto-AVSR expects input shape (B, T, H, W)
-            video_enc = self.video_encoder(videos)
-        else:
-            raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")
-            
-        if self.downsample_ratio_video != 1:
-            video_enc = [video_enc[:, x:x + self.downsample_ratio_video, :].view(video_enc.shape[0], 1, -1) for x in range(0, video_enc.shape[1], self.downsample_ratio_video)]
-            video_enc = torch.stack(video_enc, dim=1).squeeze(2)
-            
-        return video_enc
-    
+            # 1. Feature Extraction
+            if self.video_encoder_name == "av-hubert":
+                video_enc = self.video_encoder.extract_finetune(source={'video': torch.reshape(videos,(-1,videos.shape[2],videos.shape[1],videos.shape[3],videos.shape[-1])),'audio': None})[0]
+            elif self.video_encoder_name == "auto-avsr":
+                video_enc = self.video_encoder(videos)
+            else:
+                raise ValueError(f"Unsupported video encoder: {self.video_encoder_name}")
+                
+            # 2. Robust Downsampling (Works for any ratio)
+            if self.downsample_ratio_video != 1:
+                B, T, C = video_enc.shape
+                
+                # Calculate padding needed for the current ratio
+                remainder = T % self.downsample_ratio_video
+                if remainder > 0:
+                    padding_needed = self.downsample_ratio_video - remainder
+                    import torch.nn.functional as F
+                    # Pad the time dimension (dim 1)
+                    video_enc = F.pad(video_enc, (0, 0, 0, padding_needed)) 
+                
+                # 3. Reshape - .contiguous() ensures memory is packed correctly before reshape
+                # New Time = T_padded / Ratio
+                # New Features = 768 * Ratio
+                video_enc = video_enc.contiguous().view(B, -1, C * self.downsample_ratio_video)
+                
+            return video_enc
+
     def encode_audio(self, audios, max_len, is_trainval):
             
         if "whisper" in self.audio_encoder_name:

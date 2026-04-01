@@ -26,6 +26,11 @@ def compute_word_level_distance(seq1, seq2):
     seq1, seq2 = seq1.lower().split(), seq2.lower().split()
     return torchaudio.functional.edit_distance(seq1, seq2)
 
+
+def compute_char_level_distance(seq1, seq2):
+    seq1, seq2 = list(seq1.lower()), list(seq2.lower())
+    return torchaudio.functional.edit_distance(seq1, seq2)
+
 class ModelModule_LLM(LightningModule):
     def __init__(self, args):
         super().__init__()
@@ -190,17 +195,42 @@ class ModelModule_LLM(LightningModule):
         
         generated_ids = self.model(batch, is_trainval = False)
         generated_text = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        gold_text = batch["gold_text"]
+
+        # Per-sample metrics
+        sample_word_ed = compute_word_level_distance(gold_text, generated_text)
+        sample_word_len = max(1, len(gold_text.split()))
+        sample_wer = sample_word_ed / sample_word_len
+
+        sample_char_ed = compute_char_level_distance(gold_text, generated_text)
+        sample_char_len = max(1, len(gold_text))
+        sample_cer = sample_char_ed / sample_char_len
         
-        print("Input text: ", batch["gold_text"])
+        print("Input text: ", gold_text)
         print("Generated text: ", generated_text)
+        print(f"Sample WER: {sample_wer:.4f} | Sample CER: {sample_cer:.4f}")
         
-        self.total_edit_distance += compute_word_level_distance(batch["gold_text"], generated_text)
-        self.total_length += len(batch["gold_text"].split())
+        # Running totals for average metrics
+        self.total_word_edit_distance += sample_word_ed
+        self.total_word_length += len(gold_text.split())
+        self.total_char_edit_distance += sample_char_ed
+        self.total_char_length += len(gold_text)
+
+        running_wer = self.total_word_edit_distance / max(1, self.total_word_length)
+        running_cer = self.total_char_edit_distance / max(1, self.total_char_length)
+        print(f"Running Avg WER: {running_wer:.4f} | Running Avg CER: {running_cer:.4f}")
         return
     
     def on_test_epoch_start(self):
-        self.total_length = 0
-        self.total_edit_distance = 0
+        self.total_word_length = 0
+        self.total_word_edit_distance = 0
+        self.total_char_length = 0
+        self.total_char_edit_distance = 0
         
     def on_test_epoch_end(self):
-        self.log("wer", self.total_edit_distance / self.total_length)
+        avg_wer = self.total_word_edit_distance / max(1, self.total_word_length)
+        avg_cer = self.total_char_edit_distance / max(1, self.total_char_length)
+        self.log("wer", avg_wer)
+        self.log("cer", avg_cer)
+        print(f"Final Avg WER: {avg_wer:.4f}")
+        print(f"Final Avg CER: {avg_cer:.4f}")

@@ -47,12 +47,98 @@ def load_video(path):
     return vid
 
 
+def _resolve_audio_path(video_path):
+    """Resolve the corresponding audio path for a video path.
+
+    Supports both:
+    - same-folder layout: .../xxx.mp4 -> .../xxx.wav
+    - split layout: .../video/.../xxx.mp4 -> .../audio/.../xxx.wav
+    """
+    # Base candidate: same directory/stem, .wav extension
+    base_wav = os.path.splitext(video_path)[0] + ".wav"
+
+    candidates = [base_wav]
+
+    # Common split layouts
+    candidates.append(base_wav.replace("/video/", "/audio/"))
+    candidates.append(base_wav.replace("_video_seg16s", "_audio_seg16s"))
+    candidates.append(base_wav.replace("/video_seg16s/", "/audio_seg16s/"))
+
+    # De-duplicate while preserving order
+    seen = set()
+    unique_candidates = []
+    for c in candidates:
+        if c not in seen:
+            unique_candidates.append(c)
+            seen.add(c)
+
+    for candidate in unique_candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        f"Could not find matching audio file for video path: {video_path}. "
+        f"Checked: {unique_candidates}"
+    )
+
+
 def load_audio(path):
     """
     rtype: torch, T x 1
     """
-    waveform, sample_rate = torchaudio.load(path[:-4] + ".wav", normalize=True)
+    audio_path = _resolve_audio_path(path)
+    waveform, sample_rate = torchaudio.load(audio_path, normalize=True)
     return waveform.transpose(1, 0)
+
+
+def _resolve_text_path(video_path):
+    """Resolve transcript .txt path corresponding to a video path."""
+    base_txt = os.path.splitext(video_path)[0] + ".txt"
+    candidates = [
+        base_txt,
+        base_txt.replace("/lrs3/video/", "/lrs3/"),
+        base_txt.replace("/lrs2/video/", "/lrs2/"),
+        base_txt.replace("/video/", "/text/"),
+        base_txt.replace("_video_seg16s", "_text_seg16s"),
+        base_txt.replace("/video_seg16s/", "/text_seg16s/"),
+        base_txt.replace("lrs3_video_seg16s", "lrs3_text_seg16s"),
+        base_txt.replace("lrs2_video_seg16s", "lrs2_text_seg16s"),
+    ]
+
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def _extract_transcript_text(raw_text):
+    """Extract clean utterance text from transcript file content.
+
+    Handles common formats such as:
+      text: hello world
+      conf: 6
+    """
+    lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
+    if not lines:
+        return ""
+
+    # Prefer explicit `text:` line when present
+    for ln in lines:
+        if ln.lower().startswith("text:"):
+            return ln.split(":", 1)[1].strip().lower()
+
+    # Otherwise use first non-metadata line
+    for ln in lines:
+        low = ln.lower()
+        if not (low.startswith("conf:") or low.startswith("confidence:")):
+            return ln.lower()
+
+    # Fallback: first line
+    return lines[0].lower()
 
 
 
@@ -110,20 +196,12 @@ class AVDataset_LLM(torch.utils.data.Dataset):
         dataset_name, rel_path, _, text = self.list[idx]
         path = os.path.join(self.root_dir, dataset_name, rel_path)
         
-        # Load raw text from corresponding .txt file
-        # Handle both LRS2 and LRS3 path formats
-        text_path = None
-        if "lrs2_video_seg16s" in path:
-            text_path = path.replace("lrs2_video_seg16s", "lrs2_text_seg16s").replace(".mp4", ".txt")
-        elif "lrs3_video_seg16s" in path:
-            text_path = path.replace("lrs3_video_seg16s", "lrs3_text_seg16s").replace(".mp4", ".txt")
-        elif "video_seg16s" in path:
-            # Generic fallback for other formats
-            text_path = path.replace("video_seg16s", "text_seg16s").replace(".mp4", ".txt")
-        
+        # Prefer raw transcript text file when present; otherwise keep CSV text.
+        text_path = _resolve_text_path(path)
+
         if text_path and os.path.exists(text_path):
             with open(text_path, 'r') as f:
-                text = f.read().strip().lower()  # Convert to lowercase for better LLM performance
+                text = _extract_transcript_text(f.read())
         # If text file doesn't exist, fall back to text from CSV (which might be tokenized)
         
         if self.modality == "video":
