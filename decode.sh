@@ -15,7 +15,7 @@ export CUDA_VISIBLE_DEVICES=$GPU_ID
 
 # 2. Paths
 CKP_DIR="/data/ssd3/data_rishabh/llama-avsr-ckps"
-BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_llama_avsr_llm"
+BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_llama_avsr_llm2"
 SUMMARY_FILE="${BASE_OUT_PATH}/summary_llm_${MOD}.csv"
 
 # 3. Specific Flags for each Modality
@@ -51,8 +51,8 @@ esac
 
 # 4. Dataset List
 DATASETS=(
-    "LRS2|/data/ssd2/data_rishabh/lrs2_rf/labels/"
-    "LRS3|/data/ssd2/data_rishabh/lrs3/metadata/"
+    # "LRS2|/data/ssd2/data_rishabh/lrs2_rf/labels/"
+    # "LRS3|/data/ssd2/data_rishabh/lrs3/metadata/"
     "LombardGrid_front|/data/ssd3/data_rishabh/LombardGrid_Clean/meta/front/"
     "LombardGrid_side|/data/ssd3/data_rishabh/LombardGrid_Clean/meta/side/"
     "LombardGrid_Combined|/data/ssd3/data_rishabh/LombardGrid_Clean/meta/combined/"

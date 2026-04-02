@@ -3,9 +3,112 @@ import torch
 import torchaudio
 import torchvision
 import torch.nn.functional as F
+import sentencepiece as spm
 
 from python_speech_features import logfbank
 import numpy as np
+
+
+_SPM_DECODER = None
+_UNITS_ID2PIECE = None
+
+
+def _get_spm_decoder():
+    """Lazily initialize SentencePiece decoder if model file exists."""
+    global _SPM_DECODER
+    if _SPM_DECODER is not None:
+        return _SPM_DECODER
+
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [
+        os.path.join(repo_root, "spm", "unigram", "unigram5000.model"),
+        os.path.join(repo_root, "auto_avsr", "spm", "unigram", "unigram5000.model"),
+    ]
+
+    for model_path in candidates:
+        if os.path.exists(model_path):
+            _SPM_DECODER = spm.SentencePieceProcessor(model_file=model_path)
+            return _SPM_DECODER
+    return None
+
+
+def _get_units_id2piece():
+    """Load id->piece mapping from *_units.txt used during tokenization."""
+    global _UNITS_ID2PIECE
+    if _UNITS_ID2PIECE is not None:
+        return _UNITS_ID2PIECE
+
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [
+        os.path.join(repo_root, "spm", "unigram", "unigram5000_units.txt"),
+        os.path.join(repo_root, "auto_avsr", "spm", "unigram", "unigram5000_units.txt"),
+    ]
+
+    id2piece = {}
+    for units_path in candidates:
+        if not os.path.exists(units_path):
+            continue
+        with open(units_path, "r", encoding="utf8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 2:
+                    continue
+                piece = parts[0]
+                try:
+                    idx = int(parts[-1])
+                except ValueError:
+                    continue
+                id2piece[idx] = piece
+        if id2piece:
+            _UNITS_ID2PIECE = id2piece
+            return _UNITS_ID2PIECE
+
+    _UNITS_ID2PIECE = None
+    return _UNITS_ID2PIECE
+
+
+def _maybe_decode_spm_token_ids(text):
+    """Decode numeric token-id strings with SentencePiece; return original text otherwise."""
+    if not text:
+        return text
+    parts = text.strip().split()
+    if not parts:
+        return text
+
+    # Decode only when the entire string is integer token ids.
+    if not all(p.lstrip("-").isdigit() for p in parts):
+        return text
+
+    try:
+        ids = [int(p) for p in parts]
+
+        # 1) Preferred path: decode with units id->piece mapping used by training scripts.
+        id2piece = _get_units_id2piece()
+        if id2piece is not None:
+            pieces = []
+            for idx in ids:
+                if idx in (-1, 0):  # ignore_id / blank
+                    continue
+                piece = id2piece.get(idx)
+                if piece is None or piece in {"<eos>", "<blank>"}:
+                    continue
+                pieces.append(piece)
+
+            if pieces:
+                decoded = "".join(pieces).replace("▁", " ").replace("<space>", " ").strip().lower()
+                if decoded:
+                    return decoded
+
+        # 2) Fallback: direct SentencePiece id decoding if available.
+        decoder = _get_spm_decoder()
+        if decoder is not None:
+            decoded = decoder.DecodeIds(ids).strip().lower()
+            if decoded:
+                return decoded
+
+        return text
+    except Exception:
+        return text
 
 def stacker(feats, stack_order):
             """
@@ -196,12 +299,14 @@ class AVDataset_LLM(torch.utils.data.Dataset):
         dataset_name, rel_path, _, text = self.list[idx]
         path = os.path.join(self.root_dir, dataset_name, rel_path)
         
-        # Prefer raw transcript text file when present; otherwise keep CSV text.
+        # Prefer raw transcript text file when present; otherwise use CSV text.
         text_path = _resolve_text_path(path)
 
         if text_path and os.path.exists(text_path):
             with open(text_path, 'r') as f:
                 text = _extract_transcript_text(f.read())
+        else:
+            text = _maybe_decode_spm_token_ids(text)
         # If text file doesn't exist, fall back to text from CSV (which might be tokenized)
         
         if self.modality == "video":
