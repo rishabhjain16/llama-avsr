@@ -5,8 +5,8 @@ MOD=$1
 GPU_ID=$2
 
 if [[ -z "$MOD" || -z "$GPU_ID" ]]; then 
-    echo "Usage: bash decode.sh [V|A|AV] [GPU_ID]"
-    echo "Example: bash decode.sh AV 0"
+    echo "Usage: bash run_llm_eval.sh [V|A|AV] [GPU_ID]"
+    echo "Example: bash run_llm_eval.sh AV 0"
     exit 1
 fi
 
@@ -15,7 +15,7 @@ export CUDA_VISIBLE_DEVICES=$GPU_ID
 
 # 2. Paths
 CKP_DIR="/data/ssd3/data_rishabh/llama-avsr-ckps"
-BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_llama_avsr_llm2"
+BASE_OUT_PATH="/data/ssd3/data_rishabh/experiments_llama_avsr_llm3"
 SUMMARY_FILE="${BASE_OUT_PATH}/summary_llm_${MOD}.csv"
 
 # 3. Specific Flags for each Modality
@@ -57,9 +57,9 @@ DATASETS=(
     # "LombardGrid_side|/data/ssd3/data_rishabh/LombardGrid_Clean/meta/side/"
     # "LombardGrid_Combined|/data/ssd3/data_rishabh/LombardGrid_Clean/meta/combined/"
     # "GRID|/data/ssd3/data_rishabh/Grid_clean/meta"
-    # "RoomReader_conversational|/data/ssd3/data_rishabh/RoomReader_lips/meta/conversational"
-    # "RoomReader_individual|/data/ssd3/data_rishabh/RoomReader_lips/meta/individual"
-    # "RoomReader_combined|/data/ssd3/data_rishabh/RoomReader_lips/meta/combined"
+    "RoomReader_conversational|/data/ssd3/data_rishabh/RoomReader_lips/meta/conversational"
+    "RoomReader_individual|/data/ssd3/data_rishabh/RoomReader_lips/meta/individual"
+    "RoomReader_combined|/data/ssd3/data_rishabh/RoomReader_lips/meta/combined"
     # "TCD_TIMIT_lipspeakers_30degcam|/data/ssd3/data_rishabh/tcd_timit/meta/lipspeakers_30degcam"
     # "TCD_TIMIT_lipspeakers_straightcam|/data/ssd3/data_rishabh/tcd_timit/meta/lipspeakers_straightcam"
     # "TCD_TIMIT_lipspeakers|/data/ssd3/data_rishabh/tcd_timit/meta/lipspeakers"
@@ -69,7 +69,6 @@ DATASETS=(
     # "TCD_TIMIT_combined|/data/ssd3/data_rishabh/tcd_timit/meta/combined"
     # "TCD_TIMIT_volunteers_30degcam_lipcompare|/data/ssd3/data_rishabh/tcd_timit/meta/volunteers_30degcam_lipcompare"
     # "TCD_TIMIT_volunteers_straightcam_lipcompare|/data/ssd3/data_rishabh/tcd_timit/meta/volunteers_straightcam_lipcompare"
-    "Candor|/data/ssd3/data_rishabh/candor_lips/meta"
 )
 
 # Initialize CSV

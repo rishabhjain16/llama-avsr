@@ -1,4 +1,5 @@
 import os
+import csv
 import torch
 import torchaudio
 import torchvision
@@ -276,37 +277,61 @@ class AVDataset_LLM(torch.utils.data.Dataset):
         
         self.list = self.load_list(label_path)
         self.input_lengths = [int(_[2]) for _ in self.list]
+
+        # Optional clean text override from {subset}.wrd (e.g., Candor meta/test.wrd)
+        wrd_path = os.path.join(os.path.dirname(label_path), f"{subset}.wrd")
+        self.wrd_texts = None
+        if os.path.exists(wrd_path):
+            with open(wrd_path, "r", encoding="utf8", errors="ignore") as f:
+                lines = [ln.strip().lower() for ln in f]
+            if len(lines) == len(self.list):
+                self.wrd_texts = lines
+            else:
+                print(
+                    f"Warning: ignoring {wrd_path} because line count ({len(lines)}) "
+                    f"!= dataset size ({len(self.list)})."
+                )
        
         if modality == "video" or modality == "audiovisual" or modality == "audiovisual_avhubert":
             self.downsample_video = downsample_ratio if downsample_ratio != 1 else None 
         
     def load_list(self, label_path):
         paths_counts_labels = []
-        for path_count_label in open(label_path).read().splitlines():
-            parts = path_count_label.split(",")
-            if len(parts) == 5:
-                # LRS3 format: dataset_name, rel_path, input_length, _, text
-                dataset_name, rel_path, input_length, _, text = parts
-            elif len(parts) == 4:
-                # LRS2 format: dataset_name, rel_path, input_length, text
-                dataset_name, rel_path, input_length, text = parts
-            else:
-                raise ValueError(f"Unexpected CSV format. Expected 4 or 5 columns, got {len(parts)}: {path_count_label}")
-            paths_counts_labels.append((dataset_name, rel_path, input_length, text))
+        with open(label_path, newline="", encoding="utf8") as f:
+            reader = csv.reader(f)
+            for parts in reader:
+                if len(parts) == 5:
+                    # LRS3-like format: dataset_name, rel_path, input_length, _, text
+                    dataset_name, rel_path, input_length, _, text = parts
+                elif len(parts) == 4:
+                    # LRS2-like format: dataset_name, rel_path, input_length, text
+                    dataset_name, rel_path, input_length, text = parts
+                else:
+                    raise ValueError(
+                        f"Unexpected CSV format in {label_path}. Expected 4 or 5 columns, got {len(parts)}: {parts}"
+                    )
+
+                # Normalize whitespace (important for multiline text/token fields).
+                text = " ".join(text.split())
+                paths_counts_labels.append((dataset_name, rel_path, input_length, text))
         return paths_counts_labels
 
     def __getitem__(self, idx):
         dataset_name, rel_path, _, text = self.list[idx]
         path = os.path.join(self.root_dir, dataset_name, rel_path)
-        
-        # Prefer raw transcript text file when present; otherwise use CSV text.
-        text_path = _resolve_text_path(path)
 
-        if text_path and os.path.exists(text_path):
-            with open(text_path, 'r') as f:
-                text = _extract_transcript_text(f.read())
+        # Highest-priority reference text source when available.
+        if self.wrd_texts is not None:
+            text = self.wrd_texts[idx]
         else:
-            text = _maybe_decode_spm_token_ids(text)
+            # Prefer raw transcript text file when present; otherwise use CSV text.
+            text_path = _resolve_text_path(path)
+        
+            if text_path and os.path.exists(text_path):
+                with open(text_path, 'r') as f:
+                    text = _extract_transcript_text(f.read())
+            else:
+                text = _maybe_decode_spm_token_ids(text)
         # If text file doesn't exist, fall back to text from CSV (which might be tokenized)
         
         if self.modality == "video":
